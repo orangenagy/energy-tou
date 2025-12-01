@@ -6,7 +6,7 @@ parse_data.py
 Lightweight utilities to read, parse and write energy time-of-use (TOU) data.
 
 Typical usage:
-    python -m parse_data --input data.csv --output parsed.json
+    python -m parse_data --energydata data.csv --output parsed.json
 
 This file provides:
 - read_csv(path) -> list[dict]
@@ -27,7 +27,16 @@ logger.addHandler(logging.NullHandler())
 
 __all__ = ["read_csv", "parse_records", "write_json", "main"]
 
-def read_csv(path: Path) -> List[Dict[str, Any]]:
+def parse_tariff(tariff_path: Path) -> Dict[str, Any]:
+    """Parse tariff information from a JSON file."""
+    import json
+    tariff_path = Path(tariff_path)
+    logger.debug("Reading tariff info from %s", tariff_path)
+    with tariff_path.open(encoding="utf-8") as fh:
+        tariff_info = json.load(fh)
+    return tariff_info
+
+def parse_energydata(path: Path) -> List[Dict[str, Any]]:
     """Read a CSV file and return a list of row dictionaries."""
     path = Path(path)
     logger.debug("Reading CSV from %s", path)
@@ -42,8 +51,8 @@ def read_csv(path: Path) -> List[Dict[str, Any]]:
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Parse energy TOU CSV data")
-    parser.add_argument("--input", "-i", required=True, type=Path, help="Input CSV file")
-    parser.add_argument("--output", "-o", required=False, type=Path, help="Output JSON file")
+    parser.add_argument("--energydata", "-e", required=True, type=Path, help="Energy Data CSV file")
+    parser.add_argument("--tariff", "-t", required=True, type=Path, help="Tariff Info JSON file")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -53,11 +62,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         logging.basicConfig(level=logging.INFO)
 
     try:
-        rows = read_csv(args.input)
-        print(rows)
+        tariff_info = parse_tariff(args.tariff)
+        energy_data = parse_energydata(args.energydata)
+        print(energy_data)
+
+        price_estimates = compute_price_estimates(energy_data, tariff_info)
+        print(price_estimates)
         # parsed = parse_records(rows)
         # write_json(parsed, args.output)
-        logger.info("Finished parsing %s -> %s", args.input, args.output)
+        # logger.info("Finished parsing %s -> %s", args.energydata, args.output)
         return 0
     except Exception:
         logger.exception("Failed to parse data")
