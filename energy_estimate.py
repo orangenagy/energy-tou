@@ -20,7 +20,7 @@ import csv
 import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
-
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -34,6 +34,31 @@ def parse_tariff(tariff_path: Path) -> Dict[str, Any]:
     logger.debug("Reading tariff info from %s", tariff_path)
     with tariff_path.open(encoding="utf-8") as fh:
         tariff_info = json.load(fh)
+
+    print(tariff_info["standing_charge"])
+
+    for k, v in tariff_info["rates"].items():
+        print(f"Rate {k}: {v['rate_per_kwh']}p per kwh for time periods:")
+        for time_period in v["time_periods"]:
+            format = "%H:%M"
+            time_from_str = time_period.split("-")[0].strip()
+            time_to_str = time_period.split("-")[1].strip()
+
+            time_from = datetime.strptime(time_from_str, format)
+            time_to = datetime.strptime(time_to_str, format)
+
+            if time_to < time_from:
+                time_to += timedelta(days=1)
+
+            time_difference = time_to - time_from
+
+            print(f"From {time_from.time()} to {time_to.time()} was {time_difference} hours at rate {v['rate_per_kwh']}p per kwh")
+    
+            current_time = time_from
+            while current_time < time_to:
+                print(f"Hour: {current_time.time().strftime('%H:%M')}")
+                current_time += + timedelta(minutes=30)  # Increment by 30 minutes
+
     return tariff_info
 
 def parse_energydata(path: Path) -> List[Dict[str, Any]]:
@@ -43,8 +68,8 @@ def parse_energydata(path: Path) -> List[Dict[str, Any]]:
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
         # print(f"this is it: {reader}")
-        for row in reader:
-            print(f"row: {row}; date is {row['dateTime']}")
+        # for row in reader:
+        #     print(f"row: {row}; date is {row['dateTime']}")
         
         # return [dict(row) for row in reader]
         return "test"
@@ -63,13 +88,14 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     try:
         tariff_info = parse_tariff(args.tariff)
-        energy_data = parse_energydata(args.energydata)
-        print(energy_data)
+        print(tariff_info)
 
-        price_estimates = compute_price_estimates(energy_data, tariff_info)
-        print(price_estimates)
-        # parsed = parse_records(rows)
-        # write_json(parsed, args.output)
+        energy_data = parse_energydata(args.energydata)
+        # print(energy_data)
+
+        # price_estimates = compute_price_estimates(energy_data, tariff_info)
+        # print(price_estimates)
+
         # logger.info("Finished parsing %s -> %s", args.energydata, args.output)
         return 0
     except Exception:
