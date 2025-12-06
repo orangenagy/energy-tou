@@ -37,6 +37,8 @@ def parse_tariff(tariff_path: Path) -> Dict[str, Any]:
 
     print(tariff_info["standing_charge"])
 
+    hourly_rates = {}
+
     for k, v in tariff_info["rates"].items():
         print(f"Rate {k}: {v['rate_per_kwh']}p per kwh for time periods:")
         for time_period in v["time_periods"]:
@@ -56,14 +58,22 @@ def parse_tariff(tariff_path: Path) -> Dict[str, Any]:
     
             current_time = time_from
             while current_time < time_to:
-                print(f"Hour: {current_time.time().strftime('%H:%M')}")
+                hour = current_time.time().strftime('%H:%M')
+                hourly_rates[hour] = v['rate_per_kwh']
+                # print(f"Hour: {hour}")
                 current_time += + timedelta(minutes=30)  # Increment by 30 minutes
+
+
+    sorted_hours = sorted(hourly_rates.keys())
+    for hour in sorted_hours:
+        print(f"{hour}: {hourly_rates[hour]}p")
 
     return tariff_info
 
 def parse_energydata(path: Path) -> List[Dict[str, Any]]:
     """Read a CSV file and return a list of row dictionaries."""
     path = Path(path)
+
     logger.debug("Reading CSV from %s", path)
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
